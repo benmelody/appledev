@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ký và Cài đặt eSign Trực Tuyến</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col items-center justify-center p-4">
+
+    <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-6 md:p-8">
+        <div class="text-center mb-6">
+            <h1 class="text-2xl font-bold tracking-tight text-white">eSign Web Signer</h1>
+            <p class="text-sm text-slate-400 mt-1">Tải chứng chỉ của bạn để ký và cài đặt eSign trực tiếp</p>
+        </div>
+
+        <form id="signForm" class="space-y-4">
+            <!-- Upload file .p12 -->
+            <div>
+                <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">File Chứng Chỉ (.p12)</label>
+                <input type="file" id="p12File" accept=".p12" required
+                    class="w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500 file:cursor-pointer bg-slate-800/50 rounded-lg border border-slate-700 p-1">
+            </div>
+
+            <!-- Upload file .mobileprovision -->
+            <div>
+                <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">File Hồ Sơ Cấu Hình (.mobileprovision)</label>
+                <input type="file" id="mobileProvisionFile" accept=".mobileprovision" required
+                    class="w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500 file:cursor-pointer bg-slate-800/50 rounded-lg border border-slate-700 p-1">
+            </div>
+
+            <!-- Mật khẩu p12 -->
+            <div>
+                <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Mật khẩu chứng chỉ (.p12)</label>
+                <input type="password" id="password" placeholder="Nhập mật khẩu p12 (nếu có)"
+                    class="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+            </div>
+
+            <!-- Nút submit -->
+            <button type="submit" id="submitBtn"
+                class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2.5 rounded-lg transition duration-200 text-sm shadow-lg shadow-indigo-600/30">
+                Tiến Hành Ký eSign
+            </button>
+        </form>
+
+        <!-- Trạng thái / Kết quả -->
+        <div id="statusContainer" class="mt-6 hidden text-center space-y-3">
+            <div id="loadingSpinner" class="flex justify-center items-center space-x-2 text-indigo-400 text-sm">
+                <svg class="animate-spin h-5 w-5 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Đang xử lý và ký file... Vui lòng đợi</span>
+            </div>
+            
+            <div id="resultBox" class="hidden">
+                <!-- Nội dung hiển thị sau khi ký xong (Nút cài đặt OTA hoặc Tải về) -->
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript xử lý gửi dữ liệu -->
+    <script>
+        const form = document.getElementById('signForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const statusContainer = document.getElementById('statusContainer');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const resultBox = document.getElementById('resultBox');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const p12File = document.getElementById('p12File').files[0];
+            const mobileProvisionFile = document.getElementById('mobileProvisionFile').files[0];
+            const password = document.getElementById('password').value;
+
+            if (!p12File || !mobileProvisionFile) {
+                alert('Vui lòng chọn đầy đủ file .p12 và .mobileprovision!');
+                return;
+            }
+
+            // Chuẩn bị dữ liệu gửi đi (Multipart/form-data)
+            const formData = new FormData();
+            formData.append('p12', p12File);
+            formData.append('mobileprovision', mobileProvisionFile);
+            formData.append('password', password);
+
+            // Giao diện trạng thái chờ
+            form.classList.add('opacity-50', 'pointer-events-none');
+            statusContainer.classList.remove('hidden');
+            loadingSpinner.classList.remove('hidden');
+            resultBox.classList.add('hidden');
+
+            try {
+                // Gửi request đến API ở Backend (ví dụ: /api/sign)
+                const response = await fetch('/api/sign', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                loadingSpinner.classList.add('hidden');
+                resultBox.classList.remove('hidden');
+
+                if (response.ok && data.success) {
+                    // Thành công: Hiển thị nút cài đặt hoặc tải về
+                    resultBox.innerHTML = `
+                        <p class="text-green-400 text-sm font-medium mb-3">Ký thành công!</p>
+                        <a href="${data.installUrl}" 
+                           class="block w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-2.5 rounded-lg text-sm transition">
+                            Cài Đặt eSign Ngay (OTA)
+                        </a>
+                    `;
+                } else {
+                    // Thất bại
+                    resultBox.innerHTML = `
+                        <p class="text-rose-400 text-sm font-medium">Lỗi: ${data.message || 'Không thể ký file IPA'}</p>
+                    `;
+                    form.classList.remove('opacity-50', 'pointer-events-none');
+                }
+            } catch (error) {
+                loadingSpinner.classList.add('hidden');
+                resultBox.classList.remove('hidden');
+                resultBox.innerHTML = `
+                    <p class="text-rose-400 text-sm font-medium">Lỗi kết nối đến máy chủ!</p>
+                `;
+                form.classList.remove('opacity-50', 'pointer-events-none');
+            }
+        });
+    </script>
+</body>
+</html>
